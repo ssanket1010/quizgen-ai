@@ -2,8 +2,27 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { Question, QuestionType, GenerationConfig } from "../types";
 import { ParsedContent } from "./fileParser";
 
-// Initialize Gemini Client
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// REMOVE the top-level initialization
+// const ai = new GoogleGenAI({ apiKey: process.env.API_KEY }); 
+
+const MODEL_NAME = "gemini-3-flash-preview";
+
+export const generateQuizFromContent = async (
+  content: ParsedContent,
+  config: GenerationConfig
+): Promise<{ title: string; questions: Question[] }> => {
+  
+  // Initialize INSIDE the function
+  // Use a fallback to empty string to prevent crashing, though it will fail if empty
+  const apiKey = process.env.API_KEY || process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    throw new Error("API Key is missing. Please check your settings.");
+  }
+  
+  const ai = new GoogleGenAI({ apiKey });
+
+  const { questionCount, difficulty } = config;
+  // ... rest of your code ...
 
 // Use 3-flash-preview as it's good for both text and vision tasks (multimodal)
 const MODEL_NAME = "gemini-3-flash-preview";
