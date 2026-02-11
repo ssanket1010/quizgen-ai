@@ -1,0 +1,5 @@
+{
+  "name": "QuizGen AI",
+  "description": "Transform PDF and Excel documents into interactive quizzes instantly using Gemini AI.",
+  "requestFramePermissions": []
+}
