@@ -2,38 +2,30 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { Question, QuestionType, GenerationConfig } from "../types";
 import { ParsedContent } from "./fileParser";
 
-// REMOVE the top-level initialization
-// const ai = new GoogleGenAI({ apiKey: process.env.API_KEY }); 
-
+// Configuration constant - defined at the top level
 const MODEL_NAME = "gemini-3-flash-preview";
 
+/**
+ * Generates a quiz based on the provided content using Google Gemini.
+ */
 export const generateQuizFromContent = async (
   content: ParsedContent,
   config: GenerationConfig
 ): Promise<{ title: string; questions: Question[] }> => {
-  
-  // Initialize INSIDE the function
-  // Use a fallback to empty string to prevent crashing, though it will fail if empty
+  const { questionCount, difficulty } = config;
+
+  // 1. SECURE INITIALIZATION
+  // We initialize the client INSIDE the function so the app doesn't crash on load
+  // if the key is missing.
   const apiKey = process.env.API_KEY || process.env.GEMINI_API_KEY;
-  if (!apiKey) {
-    throw new Error("API Key is missing. Please check your settings.");
-  }
   
+  if (!apiKey) {
+    throw new Error("Gemini API Key is missing. Please check your Vercel Environment Variables.");
+  }
+
   const ai = new GoogleGenAI({ apiKey });
 
-  const { questionCount, difficulty } = config;
-  // ... rest of your code ...
-
-// Use 3-flash-preview as it's good for both text and vision tasks (multimodal)
-const MODEL_NAME = "gemini-3-flash-preview";
-
-export const generateQuizFromContent = async (
-  content: ParsedContent,
-  config: GenerationConfig
-): Promise<{ title: string; questions: Question[] }> => {
-  const { questionCount, difficulty } = config;
-
-  // System instructions as part of the prompt construction
+  // 2. PROMPT CONSTRUCTION
   const instructionPart = {
     text: `
     You are an expert educational content creator and quiz master.
@@ -51,7 +43,7 @@ export const generateQuizFromContent = async (
     `
   };
 
-  // Fix: explicitly type the array to handle mixed content types (text and inlineData)
+  // Prepare content parts
   const contents: Array<{ text?: string; inlineData?: { mimeType: string; data: string } }> = [instructionPart];
 
   if (content.type === 'text') {
@@ -60,58 +52,60 @@ export const generateQuizFromContent = async (
     contents.push({ inlineData: content.inlineData });
   }
 
-  const response = await ai.models.generateContent({
-    model: MODEL_NAME,
-    contents: { parts: contents }, // Correct structure for @google/genai
-    config: {
-      responseMimeType: "application/json",
-      responseSchema: {
-        type: Type.OBJECT,
-        properties: {
-          title: { type: Type.STRING, description: "A creative title for the quiz based on the topic." },
-          questions: {
-            type: Type.ARRAY,
-            items: {
-              type: Type.OBJECT,
-              properties: {
-                id: { type: Type.STRING, description: "Unique identifier like q1, q2" },
-                type: { 
-                  type: Type.STRING, 
-                  enum: [
-                    QuestionType.MULTIPLE_CHOICE,
-                    QuestionType.TRUE_FALSE,
-                    QuestionType.SHORT_ANSWER
-                  ] 
-                },
-                question: { type: Type.STRING },
-                options: { 
-                  type: Type.ARRAY, 
-                  items: { type: Type.STRING },
-                  description: "Array of 4 options. Required for MULTIPLE_CHOICE, empty for others."
-                },
-                correctAnswer: { type: Type.STRING, description: "The exact correct answer string." },
-                explanation: { type: Type.STRING, description: "Why this answer is correct." }
-              },
-              required: ["id", "type", "question", "correctAnswer", "explanation"]
-            }
-          }
-        },
-        required: ["title", "questions"]
-      }
-    }
-  });
-
-  const text = response.text;
-  
-  if (!text) {
-    throw new Error("No response received from Gemini.");
-  }
-
+  // 3. API CALL
   try {
+    const response = await ai.models.generateContent({
+      model: MODEL_NAME,
+      contents: { parts: contents },
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            title: { type: Type.STRING, description: "A creative title for the quiz based on the topic." },
+            questions: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  id: { type: Type.STRING, description: "Unique identifier like q1, q2" },
+                  type: { 
+                    type: Type.STRING, 
+                    enum: [
+                      QuestionType.MULTIPLE_CHOICE,
+                      QuestionType.TRUE_FALSE,
+                      QuestionType.SHORT_ANSWER
+                    ] 
+                  },
+                  question: { type: Type.STRING },
+                  options: { 
+                    type: Type.ARRAY, 
+                    items: { type: Type.STRING },
+                    description: "Array of 4 options. Required for MULTIPLE_CHOICE, empty for others."
+                  },
+                  correctAnswer: { type: Type.STRING, description: "The exact correct answer string." },
+                  explanation: { type: Type.STRING, description: "Why this answer is correct." }
+                },
+                required: ["id", "type", "question", "correctAnswer", "explanation"]
+              }
+            }
+          },
+          required: ["title", "questions"]
+        }
+      }
+    });
+
+    const text = response.text;
+    
+    if (!text) {
+      throw new Error("No response received from Gemini.");
+    }
+
     const data = JSON.parse(text);
     return data;
-  } catch (error) {
+
+  } catch (error: any) {
     console.error("Failed to parse Gemini response", error);
-    throw new Error("Failed to generate valid quiz data.");
+    throw new Error(error.message || "Failed to generate valid quiz data.");
   }
 };
