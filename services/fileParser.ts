@@ -2,7 +2,11 @@ import * as pdfjsLib from 'pdfjs-dist';
 import * as XLSX from 'xlsx';
 
 // Initialize PDF.js worker
-const PDFJS_VERSION = '3.11.174';
+// Replace the hardcoded v3 version:
+// const PDFJS_VERSION = '3.11.174'; 
+
+// Use the version matching your package.json (approximate is fine for CDN)
+const PDFJS_VERSION = '4.10.38'; // or '5.4.624' if available on cdnjs, otherwise use 4.x for stability
 pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${PDFJS_VERSION}/pdf.worker.min.js`;
 
 export type ParsedContent = 
